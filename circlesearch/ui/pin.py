@@ -1,10 +1,7 @@
 import itertools
-import os
-import tempfile
 import time
 
 from PyQt6.QtCore import QPoint, QPointF, QRectF, QSize, Qt, QTimer
-from PyQt6.QtDBus import QDBusConnection, QDBusInterface
 from PyQt6.QtGui import QColor, QGuiApplication, QImage, QKeySequence, QPainter, QPainterPath, QPen, QShortcut
 from PyQt6.QtWidgets import QGraphicsOpacityEffect, QWidget
 
@@ -19,53 +16,6 @@ from circlesearch.ui.theme import ON_SURFACE, ON_SURFACE_VARIANT, PALETTE, PRIMA
 MARGIN = 32
 _ids = itertools.count(1)
 _open = []
-
-KWIN_SCRIPT = """
-const windows = workspace.windowList ? workspace.windowList() : workspace.clientList();
-for (const w of windows) {
-    if (w.caption === %(caption)r) {
-        w.keepAbove = true;
-        w.skipTaskbar = true;
-        w.skipPager = true;
-        w.skipSwitcher = true;
-        w.onAllDesktops = true;
-        w.frameGeometry = {x: %(x)d, y: %(y)d, width: w.frameGeometry.width, height: w.frameGeometry.height};
-    }
-}
-"""
-
-
-def on_kde():
-    return "KDE" in os.environ.get("XDG_CURRENT_DESKTOP", "").upper()
-
-
-def kwin_place(caption, pos):
-    if not on_kde() or QGuiApplication.platformName() != "wayland":
-        return
-    bus = QDBusConnection.sessionBus()
-    if not bus.isConnected():
-        return
-    fd, path = tempfile.mkstemp(suffix=".js", prefix="circle-search-pin-")
-    with os.fdopen(fd, "w") as f:
-        f.write(KWIN_SCRIPT % {"caption": caption, "x": pos.x(), "y": pos.y()})
-    name = os.path.basename(path)
-    scripting = QDBusInterface("org.kde.KWin", "/Scripting", "org.kde.kwin.Scripting", bus)
-    reply = scripting.call("loadScript", path, name)
-    args = reply.arguments()
-    if args and isinstance(args[0], int) and args[0] >= 0:
-        for object_path in (f"/Scripting/Script{args[0]}", f"/{args[0]}"):
-            run = QDBusInterface("org.kde.KWin", object_path, "org.kde.kwin.Script", bus).call("run")
-            if not run.errorName():
-                break
-
-    def cleanup():
-        scripting.call("unloadScript", name)
-        try:
-            os.unlink(path)
-        except OSError:
-            pass
-    QTimer.singleShot(1500, cleanup)
-
 
 class Pin(QWidget):
     on_close = None
@@ -96,7 +46,6 @@ class Pin(QWidget):
         self.activateWindow()
         self._last = time.monotonic()
         self.timer.start()
-        QTimer.singleShot(60, lambda: kwin_place(self.windowTitle(), target))
 
     def content_rect(self):
         return QRectF(self.rect()).adjusted(MARGIN, MARGIN, -MARGIN, -MARGIN)

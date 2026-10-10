@@ -5,7 +5,7 @@ from PyQt6.QtCore import QRectF, QSize, Qt
 from PyQt6.QtGui import QImage, QOffscreenSurface, QOpenGLContext
 from PyQt6.QtOpenGLWidgets import QOpenGLWidget
 from PyQt6.QtOpenGL import (QOpenGLBuffer, QOpenGLFramebufferObject, QOpenGLShader, QOpenGLShaderProgram,
-                            QOpenGLTexture, QOpenGLVersionFunctionsFactory, QOpenGLVersionProfile, QOpenGLWindow)
+                            QOpenGLTexture, QOpenGLVersionFunctionsFactory, QOpenGLVersionProfile)
 
 from circlesearch.core import settings
 from circlesearch.ui.effects import InkStroke, gaussian
@@ -783,26 +783,11 @@ class Renderer:
             self.tip(stroke.cursor, stroke.TIP_RADIUS, stroke.tip_color(flow), alpha * stroke.TIP_STRENGTH)
 
 
-class Backdrop(QOpenGLWindow):
-    def __init__(self, scene):
-        super().__init__()
-        self.scene = scene
-        self.gpu = None
-        self.setTitle("Circle to Search")
-        self.setFlags(Qt.WindowType.FramelessWindowHint | Qt.WindowType.WindowStaysOnTopHint |
-                      Qt.WindowType.WindowDoesNotAcceptFocus | Qt.WindowType.WindowTransparentForInput)
-
-    def initializeGL(self):
-        self.gpu = Renderer(self.scene.shot)
-        self.scene.backdrop_ready(self.gpu)
-
-    def paintGL(self):
-        self.scene.paint_backdrop(self.gpu)
-
-
 class BackdropWidget(QOpenGLWidget):
-    """Same renderer as Backdrop, but embedded in the overlay window (one window instead of two).
-    GNOME/mutter stops drawing the separate backdrop window as soon as the fullscreen overlay is clicked."""
+    """The screenshot, scrim and effects, drawn with OpenGL inside the overlay window.
+
+    A separate backdrop window under the overlay does not work on GNOME: mutter stops drawing it as soon as the
+    fullscreen overlay is clicked, and the screen goes black."""
 
     def __init__(self, scene, parent):
         super().__init__(parent)

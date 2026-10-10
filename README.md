@@ -8,7 +8,7 @@ Circle to Search for the Linux desktop. Press a shortcut, circle or tap somethin
 
 The page in the preview is the Wikipedia article [Kyoto](https://en.wikipedia.org/wiki/Kyoto) (CC BY-SA 4.0).
 
-It is made for KDE Plasma 6 on Wayland. GNOME on Wayland is supported through the screenshot portal, but it is not tested on GNOME yet.
+This branch (`feat/search-gnome`) is the GNOME on Wayland version. It takes screenshots through the screenshot portal and draws everything in one window. The KDE Plasma version is in the `main` branch.
 
 ## How it works
 
@@ -55,20 +55,19 @@ Names in other scripts (for example "Львів" or "東京") are found on the W
 
 ## Requirements
 
-- KDE Plasma 6 or GNOME, on Wayland
+- GNOME, on Wayland
 - Python 3.11 or newer, or Python 3.10 with the `tomli` package
 - PyQt6
 - Tesseract OCR with the English language pack, and packs for other languages you want to read
 - Hunspell English dictionary (used to tell words from names)
 - `wl-clipboard` (for copying on Wayland)
 - `zbar` (`zbarimg`) for QR codes and barcodes. `zxing-cpp` with Pillow also works.
-- On KDE: `gcc` and GLib development files (to build the screenshot helper)
-- On GNOME: `xdg-desktop-portal` and `xdg-desktop-portal-gnome`. These are installed with GNOME.
+- `xdg-desktop-portal` and `xdg-desktop-portal-gnome`. These are installed with GNOME.
 
 On Fedora:
 
 ```
-sudo dnf install python3-pyqt6 tesseract tesseract-langpack-eng hunspell-en-US wl-clipboard zbar gcc glib2-devel
+sudo dnf install python3-pyqt6 tesseract tesseract-langpack-eng hunspell-en-US wl-clipboard zbar
 ```
 
 Other OCR languages use the package name `tesseract-langpack-<code>`, for example `tesseract-langpack-ukr` or `tesseract-langpack-deu`.
@@ -81,50 +80,12 @@ sudo apt install python3-pyqt6 tesseract-ocr tesseract-ocr-eng hunspell-en-us wl
 
 Other OCR languages use the package name `tesseract-ocr-<code>`, for example `tesseract-ocr-ukr`.
 
-## Install on KDE Plasma
+## Install
 
 1. Clone the repository:
 
    ```
-   git clone https://github.com/styanr/search.git
-   cd search
-   ```
-
-2. Build the screenshot helper:
-
-   ```
-   gcc -O2 -o kwin-grab kwin-grab.c $(pkg-config --cflags --libs gio-unix-2.0)
-   ```
-
-3. Allow the helper to take screenshots. KWin only gives screenshots to programs that are listed in a desktop file. Create `~/.local/share/applications/circle-search-grab.desktop` with this content, and change the path to where you cloned the repository:
-
-   ```
-   [Desktop Entry]
-   Type=Application
-   Name=Circle to Search screenshot helper
-   Exec=/home/you/search/kwin-grab
-   NoDisplay=true
-   X-KDE-DBUS-Restricted-Interfaces=org.kde.KWin.ScreenShot2
-   ```
-
-   Then run `kbuildsycoca6`.
-
-   Without this step the app still works, but it uses Spectacle for screenshots, which is about 0.5 seconds slower.
-
-4. Add a keyboard shortcut. Open System Settings → Keyboard → Shortcuts → Add New → Command or Script. Use this command, with your path:
-
-   ```
-   python3 /home/you/search/circle_search.py
-   ```
-
-   Then choose a key, for example Meta+S.
-
-## Install on GNOME
-
-1. Clone the repository:
-
-   ```
-   git clone https://github.com/styanr/search.git
+   git clone -b feat/search-gnome https://github.com/styanr/search.git
    cd search
    ```
 
@@ -140,9 +101,15 @@ Other OCR languages use the package name `tesseract-ocr-<code>`, for example `te
    python3 /home/you/search/circle_search.py
    ```
 
-   Then choose a key, for example Super+S.
+   Then choose a key. Super+S is already used by GNOME for the quick settings, so use a free one, for example Super+Shift+S.
 
 4. The first time you use the shortcut, GNOME asks "Allow Circle to Search to Take Screenshots?". Choose Allow. GNOME saves the answer, Allow or Deny, and does not ask again.
+
+   If the shortcut only fails with "Could not take a screenshot", GNOME could not show the question, because it only shows it to the focused app and a shortcut starts the app without a window. Allow the screenshots by hand once:
+
+   ```
+   busctl --user call org.freedesktop.impl.portal.PermissionStore /org/freedesktop/impl/portal/PermissionStore org.freedesktop.impl.portal.PermissionStore SetPermission sbssas screenshot true screenshot io.github.styanr.search 1 yes
+   ```
 
    To remove the saved answer, so that GNOME asks again:
 
@@ -172,7 +139,7 @@ The portal saves the screenshot as a file. The app reads the file and deletes it
 | Right-click | Clear the selection |
 | Esc | Close |
 
-The pin button on a card keeps that card on the screen after the overlay closes. Drag a pin to move it, scroll on an area pin to zoom, and double-click or press Esc to close it. On KDE the pins stay above other windows.
+The pin button on a card keeps that card on the screen after the overlay closes. Drag a pin to move it, scroll on an area pin to zoom, and double-click or press Esc to close it.
 
 Run with `--instant` to search as soon as you finish circling.
 
@@ -205,7 +172,7 @@ languages = ["eng", "jpn"]
 
 If the file has a mistake, the app says so on standard error and uses the default for that setting.
 
-The app reads your language, currency and units from the KDE regional settings (`LC_ADDRESS`, `LC_MONETARY`, `LC_MEASUREMENT`). The card text is in English.
+The app reads your language, currency and units from your regional settings (`LC_ADDRESS`, `LC_MONETARY`, `LC_MEASUREMENT`). The card text is in English.
 
 ## Services and privacy
 
@@ -247,7 +214,6 @@ OCR runs on your computer. Cards and searches use these online services. The sel
 | `circlesearch/plugins/` | One folder for each feature: weather, money, places and so on |
 | `circlesearch/ui/` | The Qt app: overlay, search bar, card board, card widgets, pins, screenshots |
 | `circlesearch/cli.py` | Looks up text from the terminal: `python3 -m circlesearch.cli Kyoto` |
-| `kwin-grab.c` | Takes a screenshot through KWin's D-Bus interface |
 | `io.github.styanr.search.desktop` | Desktop file. Needed on GNOME for the screenshot permission |
 
 ## Plugins
@@ -301,8 +267,7 @@ Screenshot backends (`ui/capture.py`), OCR engines (`core/ocr.py`) and routers (
 
 ## Limitations
 
-- Fast screenshots work only on KDE Plasma (KWin). On GNOME and other desktops the app uses the screenshot portal.
-- Pins stay above other windows on KDE only. On GNOME they are normal windows.
+- Pins are normal windows on GNOME and do not stay above other windows.
 - OCR can misread small text or text in fonts with unusual shapes. Check the text in the search bar if a card does not appear.
 - A name that is also a common word (for example "React") may show the dictionary meaning instead of the article.
 - The Google Translate and Google Lens endpoints are not official APIs and can change.

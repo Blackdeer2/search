@@ -12,8 +12,6 @@ from PyQt6.QtGui import QImage
 from circlesearch.core.registry import Registry
 
 APP_ID = "io.github.styanr.search"
-ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.realpath(__file__))))
-KWIN_GRAB = os.path.join(ROOT, "kwin-grab")
 
 backends = Registry("capture backend")
 
@@ -25,10 +23,6 @@ def backend(name, order=100, enabled=lambda: True):
         backends.add(name, instance, order)
         return cls
     return register
-
-
-def on_kde():
-    return "KDE" in os.environ.get("XDG_CURRENT_DESKTOP", "").upper()
 
 
 class Backend:
@@ -56,32 +50,6 @@ class Capture:
             if image is not None and not image.isNull():
                 return image
         return None
-
-
-@backend("kwin", order=10)
-class KWinGrab(Backend):
-    def begin(self):
-        if not os.access(KWIN_GRAB, os.X_OK):
-            return None
-        try:
-            return subprocess.Popen([KWIN_GRAB], stdout=subprocess.PIPE, stderr=subprocess.DEVNULL)
-        except OSError:
-            return None
-
-    def grab(self, proc):
-        if proc is None:
-            return None
-        try:
-            out, _ = proc.communicate(timeout=5)
-        except subprocess.TimeoutExpired:
-            proc.kill()
-            return None
-        if proc.returncode != 0:
-            return None
-        header, _, pixels = out.partition(b"\n")
-        width, height, stride, fmt, _scale = header.split()
-        image = QImage(pixels, int(width), int(height), int(stride), QImage.Format(int(fmt)))
-        return image.copy()
 
 
 class PortalResponse(QObject):
@@ -121,8 +89,7 @@ def own_scope():
         time.sleep(0.01)
 
 
-@backend("portal", order=20, enabled=lambda: not on_kde())
-@backend("portal-fallback", order=60, enabled=on_kde)
+@backend("portal", order=20)
 class Portal(Backend):
     def grab(self, _started, timeout_ms=60000):
         own_scope()
@@ -182,6 +149,4 @@ def tool(name, order, *command):
     backend(name, order)(Tool)
 
 
-tool("spectacle", 30, "spectacle", "-b", "-n", "-f", "-o")
-tool("grim", 40, "grim")
 tool("gnome-screenshot", 50, "gnome-screenshot", "-f")

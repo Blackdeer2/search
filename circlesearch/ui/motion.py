@@ -1,6 +1,5 @@
-import configparser
 import math
-import os
+import subprocess
 import time
 
 from PyQt6.QtCore import QEasingCurve, QRectF, Qt, QTimer
@@ -8,12 +7,13 @@ from PyQt6.QtGui import QColor, QGuiApplication
 
 
 def motion_factor():
-    parser = configparser.RawConfigParser(strict=False)
+    """0 when GNOME's "Animations" switch is off, otherwise 1."""
     try:
-        parser.read(os.path.expanduser("~/.config/kdeglobals"))
-        return max(0.0, parser.getfloat("KDE", "AnimationDurationFactor", fallback=1.0))
-    except (configparser.Error, ValueError):
+        out = subprocess.run(["gsettings", "get", "org.gnome.desktop.interface", "enable-animations"],
+                             capture_output=True, text=True, timeout=2).stdout
+    except (OSError, subprocess.SubprocessError):
         return 1.0
+    return 0.0 if out.strip() == "false" else 1.0
 
 
 MOTION = motion_factor()

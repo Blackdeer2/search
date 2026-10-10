@@ -114,7 +114,7 @@ def main():
     load_fonts()
     image = capture.finish()
     if image is None:
-        print("Could not take a screenshot (need kwin-grab, spectacle, grim or gnome-screenshot).", file=sys.stderr)
+        print("Could not take a screenshot (need xdg-desktop-portal-gnome or gnome-screenshot).", file=sys.stderr)
         return 1
 
     overlays = []
